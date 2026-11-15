@@ -1,0 +1,62 @@
+# Archivos compilados
+/dist
+/node_modules
+
+# Variables de Entorno (¡IMPORTANTE NO SUBIRLAS!)
+.env
+.env.test
+.env.production
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema Operativo
+.DS_Store
+Thumbs.db
+
+# Cobertura de tests
+/coverage
+
+# Entornos IDE
+/.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Agents
+.agents/
+skills-lock.json
+
+# Respaldos de base de datos (no versionar: contienen datos productivos)
+/backups/
+
+# Espacio de trabajo de ejecución por subagentes (scratch)
+.superpowers/
+
+# Archivos subidos en runtime (fotos de recepción, etc.)
+/uploads/
+
+# Cache de tokens de los scripts de demo: son credenciales, no van al repo
+scripts/.demo-tokens.json
+
+# FG autos: no se publica
+.claude/
+*.bak
+# Documentación y scripts heredados del Taller (quedan sólo en la copia local)
+/docs/*
+!/docs/DESPLIEGUE.md
+!/docs/superpowers/
+/docs/superpowers/*
+!/docs/superpowers/specs/
+/docs/superpowers/specs/*
+!/docs/superpowers/specs/2026-11-12-agencia-design.md
+/scripts/
+
+# Ningún .env se sube, tampoco los de ejemplo
+.env*

@@ -1,0 +1,66 @@
+# FG autos — backend en Render.
+# En Render: New → Blueprint → elegir este repositorio. Crea el servicio de abajo y pide
+# los valores marcados con `sync: false` (están explicados en docs/DESPLIEGUE.md).
+#
+# Plan Starter y no Free, por dos motivos: el plan gratis bloquea la salida de correo
+# (SMTP) y se duerme a los 15 minutos, así que el primer cliente del día espera un minuto.
+services:
+  - type: web
+    name: fg-autos-backend
+    runtime: node
+    plan: starter
+    region: virginia # la misma región que la base en Neon (AWS us-east-1)
+    buildCommand: npm ci && npm run build
+    # Las migraciones corren antes de cada publicación: si una falla, no se publica.
+    preDeployCommand: npm run migration:run:dist
+    startCommand: node dist/main
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.19.0
+      - key: STAGE
+        value: prod
+      - key: TZ_OFFSET_HORAS
+        value: "-3"
+      # ── Base de datos (Neon) ──
+      - key: DATABASE_URL
+        sync: false
+      # ── Seguridad ──
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      # ── Direcciones públicas (se completan cuando existen el ERP y el sitio en Vercel) ──
+      - key: API_PUBLIC_URL
+        sync: false
+      - key: ERP_URL
+        sync: false
+      - key: PORTAL_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      # ── Correo (SMTP): sin estas cuatro, WhatsApp funciona y el correo queda apagado ──
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: MAIL_REPLY_TO
+        sync: false
+      # ── Fotos (Cloudinary): sin esto las fotos se guardan en el disco del servicio y se pierden al republicar ──
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: CLOUDINARY_CARPETA
+        value: fg-autos
+      # ── Cobro del abono por Mercado Pago (opcional; vacío = sin cobro automático) ──
+      - key: MP_ABONO_ACCESS_TOKEN
+        sync: false
+      - key: MP_ABONO_WEBHOOK_SECRET
+        sync: false
