@@ -1,14 +1,17 @@
+import { randomUUID } from 'crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager, In } from 'typeorm';
 
 import { User } from '../auth/entities/user.entity';
 import { ErrorDeNegocio } from '../common/errores/error-negocio';
 import { bloquearNumeracion, ordenarPorCorrelativo, siguienteCorrelativo } from '../common/numeracion.util';
+import { FotosAlmacen } from '../orden-fotos/fotos.almacen';
+import { comprimirFoto } from '../orden-fotos/fotos.util';
 import { OrigenMovimiento, SignoMovimiento } from '../wallets/entities/wallet-movement.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { WalletLedgerService } from '../wallets/wallet-ledger.service';
 import { OperacionPago } from './entities/operacion-pago.entity';
-import { EstadoOperacion, Operacion } from './entities/operacion.entity';
+import { EstadoOperacion, FotoDeOperacion, Operacion } from './entities/operacion.entity';
 import { Unidad } from './entities/unidad.entity';
 import { AnularDto, CerrarDto, ComisionDto, ListarOperacionesDto, PagoDto, PeriodoDto, ReservarDto } from './dto/operaciones.dtos';
 import { PorMoneda, comisionSugerida, resumenPorVendedor } from './comisiones.util';
@@ -48,6 +51,8 @@ export interface VistaOperacion {
   comision_pagada_at: Date | null;
   /** Los papeles de la unidad que hoy impiden cerrar la venta. */
   bloqueantes: string[];
+  /** Fotos y comprobantes almacenados en esta Orden de Venta (OV). */
+  fotos: FotoDeOperacion[];
   notas: string | null;
   anulada_motivo: string | null;
   created_at: Date;
@@ -82,6 +87,7 @@ export class OperacionesService {
     private readonly dataSource: DataSource,
     private readonly unidades: UnidadesService,
     private readonly ledger: WalletLedgerService,
+    private readonly almacen: FotosAlmacen,
   ) {}
 
   async listar(dto: ListarOperacionesDto): Promise<VistaOperacion[]> {
@@ -194,6 +200,55 @@ export class OperacionesService {
       await em.update(Unidad, { id: op.unidadId, estado: 'reservada' }, { estado: 'disponible' });
       return this.obtener(op.id, em);
     });
+  }
+
+  /** Sube fotos / comprobantes directamente a la Orden de Venta (OV), igual que las fotos de una OS en Taller. */
+  async subirFotos(
+    id: string,
+    archivos: Buffer[],
+    notaRaw: string | undefined,
+    etapaRaw: string | undefined,
+    user: User,
+  ): Promise<VistaOperacion> {
+    if (!archivos.length) throw new ErrorDeNegocio('DATOS_INVALIDOS', 'Elegí al menos una foto para subir a la OV.');
+    const em = this.dataSource.manager;
+    const op = await em.findOne(Operacion, { where: { id } });
+    if (!op) throw new NotFoundException('No encontramos esa operación.');
+    const actuales = op.fotos ?? [];
+    const lugar = Math.max(0, 20 - actuales.length);
+    if (lugar <= 0) {
+      throw new ErrorDeNegocio('DATOS_INVALIDOS', 'Una Orden de Venta admite hasta 20 fotos: quitá alguna.');
+    }
+    const comprimidas = await Promise.all(archivos.slice(0, lugar).map((a) => comprimirFoto(a)));
+    const nota = limpio(notaRaw)?.slice(0, 300) ?? null;
+    const etapa = limpio(etapaRaw)?.slice(0, 40) ?? (op.estado === 'vendida' ? 'entrega' : 'reserva');
+    const nuevas: FotoDeOperacion[] = [];
+    for (const f of comprimidas) {
+      const u = await this.almacen.guardarEn(`operaciones/${op.id}`, f);
+      nuevas.push({
+        id: randomUUID(),
+        url: u.url,
+        url_miniatura: u.url_miniatura,
+        nota,
+        etapa,
+        autor: user.nombre ?? null,
+        fecha: new Date().toISOString(),
+      });
+    }
+    await em.update(Operacion, { id: op.id }, { fotos: [...actuales, ...nuevas] });
+    return this.obtener(op.id);
+  }
+
+  async borrarFoto(id: string, fotoId: string): Promise<VistaOperacion> {
+    const em = this.dataSource.manager;
+    const op = await em.findOne(Operacion, { where: { id } });
+    if (!op) throw new NotFoundException('No encontramos esa operación.');
+    const actuales = op.fotos ?? [];
+    const elegida = actuales.find((f) => f.id === fotoId);
+    if (!elegida) throw new NotFoundException('Esa foto no pertenece a esta operación.');
+    await em.update(Operacion, { id: op.id }, { fotos: actuales.filter((f) => f.id !== fotoId) });
+    await this.almacen.borrar([elegida.url, elegida.url_miniatura]).catch(() => undefined);
+    return this.obtener(op.id);
   }
 
   // ─── Comisiones (13/11/2026) ──────────────────────────────────────────────
@@ -449,6 +504,7 @@ export class OperacionesService {
         comision_sugerida: comisionSugerida(o.precio, vendedor?.comision_pct),
         comision_pagada_at: o.comision_pagada_at ?? null,
         bloqueantes: viva && unidad ? bloqueantesPendientes(unidad, hoy) : [],
+        fotos: o.fotos ?? [],
         notas: o.notas,
         anulada_motivo: o.anulada_motivo,
         created_at: o.created_at,

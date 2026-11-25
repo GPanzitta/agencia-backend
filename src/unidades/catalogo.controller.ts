@@ -57,4 +57,16 @@ export class CatalogoController {
   async obtener(@Param('id', ParseUUIDPipe) id: string, @Headers('x-agencia') agencia?: string) {
     return this.service.obtener(await this.sitio.empresaDe(agencia), id);
   }
+
+  /** Seguimiento público en vivo para el dueño que dejó su auto en consignación. */
+  @Get('consignacion/:id')
+  async consignacion(@Param('id', ParseUUIDPipe) id: string, @Headers('x-agencia') agencia?: string) {
+    return this.service.consignacion(await this.sitio.empresaDe(agencia), id);
+  }
+
+  /** Seguimiento público en vivo de una Orden de Venta (OV) para el comprador (escaneando el QR de su OV). */
+  @Get('ov/:id')
+  async ordenDeVenta(@Param('id', ParseUUIDPipe) id: string, @Headers('x-agencia') agencia?: string) {
+    return this.service.ordenDeVentaPublica(await this.sitio.empresaDe(agencia), id);
+  }
 }

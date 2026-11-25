@@ -11,6 +11,7 @@ import { Operacion } from './entities/operacion.entity';
 import { UnidadFoto } from './entities/unidad-foto.entity';
 import { UnidadGasto } from './entities/unidad-gasto.entity';
 import { Unidad } from './entities/unidad.entity';
+import { Interesado } from '../interesados/interesado.entity';
 import { OperacionesController } from './operaciones.controller';
 import { OperacionesService } from './operaciones.service';
 import { PerfilPublicoModule } from '../perfil-publico/perfil-publico.module';
@@ -21,7 +22,7 @@ import { UnidadesService } from './unidades.service';
 /** El corazón de la agencia: unidades en stock, operaciones de venta y catálogo público (12/11/2026). */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Unidad, UnidadGasto, UnidadFoto, Operacion, OperacionPago]),
+    TypeOrmModule.forFeature([Unidad, UnidadGasto, UnidadFoto, Operacion, OperacionPago, Interesado]),
     AuthModule,
     // Las fotos de la unidad usan el mismo almacén que el resto (disco en local, Cloudinary en producción).
     FotosAlmacenModule,

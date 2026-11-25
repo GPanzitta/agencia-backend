@@ -26,6 +26,8 @@ import { EventsModule } from './events/events.module';
 import { AuditModule } from './audit/audit.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { UnidadesModule } from './unidades/unidades.module';
+import { MargenModule } from './margen/margen.module';
+import { TallerModule } from './taller/taller.module';
 import { InteresadosModule } from './interesados/interesados.module';
 import { CompetenciaModule } from './competencia/competencia.module';
 import { MensajesModule } from './mensajes/mensajes.module';
@@ -158,6 +160,10 @@ import { SaludModule } from './salud/salud.module';
     AuditModule,
     // Agencia: unidades, operaciones y catálogo público.
     UnidadesModule,
+    // Tablero de rentabilidad del dueño.
+    MargenModule,
+    // Órdenes de alistaje / taller y pañol de repuestos automotrices.
+    TallerModule,
     InteresadosModule,
     CompetenciaModule,
     MensajesModule,

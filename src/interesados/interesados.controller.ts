@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Throttle } from '@nestjs/throttler';
@@ -78,6 +78,23 @@ export class InteresadosController {
   @UserProtected(Roles.ADMIN, Roles.MOSTRADOR)
   anotar(@Param('id', ParseUUIDPipe) id: string, @Body() dto: NotaDto, @GetUser() user: User) {
     return this.service.anotar(id, dto, user);
+  }
+
+  @Post(':id/fotos')
+  @UserProtected(Roles.ADMIN, Roles.MOSTRADOR)
+  @UseInterceptors(FOTOS)
+  subirFotos(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFiles() fotos: Express.Multer.File[] | undefined,
+    @GetUser() user: User,
+  ) {
+    return this.service.subirFotos(id, (fotos ?? []).map((f) => f.buffer), user);
+  }
+
+  @Delete(':id/fotos/:indice')
+  @UserProtected(Roles.ADMIN, Roles.MOSTRADOR)
+  borrarFoto(@Param('id', ParseUUIDPipe) id: string, @Param('indice', ParseIntPipe) indice: number) {
+    return this.service.borrarFoto(id, indice);
   }
 }
 

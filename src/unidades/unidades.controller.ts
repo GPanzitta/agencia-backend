@@ -75,6 +75,16 @@ export class UnidadesController {
     return para(user, this.service.crear(dto, user));
   }
 
+  /**
+   * Lee una página pública con autos publicados (por ejemplo el sitio viejo de la
+   * agencia) y devuelve las unidades detectadas para previsualizar e importar al stock.
+   */
+  @Post('leer-sitio')
+  @UserProtected(...COMERCIAL)
+  leerSitio(@Body('url') url: string) {
+    return this.service.leerSitioExterno(url);
+  }
+
   @Patch(':id')
   @UserProtected(...COMERCIAL)
   editar(@Param('id', ParseUUIDPipe) id: string, @Body() dto: EditarUnidadDto, @GetUser() user: User) {

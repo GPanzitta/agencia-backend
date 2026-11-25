@@ -18,7 +18,7 @@ import { ReservaDelSitio, problemaDeReserva } from '../interesados/reservas-web.
 export class SitioService {
   private empresaUnicaCache: string | null = null;
 
-  constructor(private readonly dataSource: DataSource, private readonly config: ConfigService) {}
+  constructor(private readonly dataSource: DataSource, private readonly config: ConfigService) { }
 
   /**
    * Sin cabecera: `SHOP_COMPANY_ID` dice de quién es el sitio; sin la variable y
@@ -31,11 +31,10 @@ export class SitioService {
     const configurada = this.config.get<string>('SHOP_COMPANY_ID');
     if (configurada) {
       const existe = await m.findOne(Company, { where: { id: configurada }, select: { id: true } });
-      if (!existe) throw new ServiceUnavailableException('El sitio apunta a una agencia que no existe');
-      return (this.empresaUnicaCache = existe.id);
+      if (existe) return (this.empresaUnicaCache = existe.id);
     }
     const algunas = await m.find(Company, { select: { id: true }, take: 2 });
-    if (algunas.length === 1) return (this.empresaUnicaCache = algunas[0].id);
+    if (algunas.length >= 1) return (this.empresaUnicaCache = algunas[0].id);
     throw new ServiceUnavailableException('El sitio no tiene agencia configurada: falta SHOP_COMPANY_ID');
   }
 
@@ -44,6 +43,11 @@ export class SitioService {
     const slug = slugValido(cabecera);
     const empresa = slug ? await this.dataSource.manager.findOne(Company, { where: { slug }, select: { id: true } }) : null;
     if (!empresa) throw new NotFoundException('No hay ninguna agencia en esa dirección.');
+    if (!empresa) {
+      const algunas = await this.dataSource.manager.find(Company, { select: { id: true }, take: 2 });
+      if (algunas.length === 1) return algunas[0].id;
+      throw new NotFoundException('No hay ninguna agencia en esa dirección.');
+    }
     return empresa.id;
   }
 

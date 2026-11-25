@@ -5,6 +5,8 @@ import { User } from '../auth/entities/user.entity';
 import { ErrorDeNegocio } from '../common/errores/error-negocio';
 import { bloquearNumeracion, ordenarPorCorrelativo, siguienteCorrelativo } from '../common/numeracion.util';
 import { exigirCupo } from '../abono/cupo-abono';
+import { bajarPagina } from '../competencia/descarga';
+import { extraerUnidades } from '../competencia/lector.util';
 import { FotosAlmacen } from '../orden-fotos/fotos.almacen';
 import { comprimirFoto } from '../orden-fotos/fotos.util';
 import { Operacion } from './entities/operacion.entity';
@@ -74,6 +76,36 @@ export class UnidadesService {
     const u = await em.findOne(Unidad, { where: { id }, relations: { gastos: true, fotos: true } });
     if (!u) throw new NotFoundException('No encontramos esa unidad.');
     return (await this.vistas(em, [u]))[0];
+  }
+
+  /**
+   * Descarga y analiza una URL externa para extraer vehículos y prellenar el importador
+   * de stock en 30 segundos.
+   */
+  async leerSitioExterno(direccion: string) {
+    const limpia = (direccion ?? '').trim();
+    if (!/^https?:\/\/.+\..+/i.test(limpia)) {
+      throw new ErrorDeNegocio('DATOS_INVALIDOS', 'Pegá la dirección completa de la página, con https:// adelante.');
+    }
+    const { html, url } = await bajarPagina(limpia);
+    const extraidas = extraerUnidades(html, url);
+    return extraidas.slice(0, 80).map((u, idx) => {
+      const marca = u.marca || u.titulo.split(/\s+/)[0] || 'Marca';
+      const resto = u.titulo.replace(new RegExp(`^${marca}\\s*`, 'i'), '').trim();
+      const partes = resto.split(/\s+/);
+      const modelo = partes[0] || u.titulo;
+      const version = partes.slice(1).join(' ') || u.detalle || null;
+      return {
+        dominio: `IM${String(idx + 1).padStart(3, '0')}AA`,
+        marca: marca.slice(0, 60),
+        modelo: modelo.slice(0, 80),
+        version: version ? version.slice(0, 120) : null,
+        anio: u.anio ?? new Date().getFullYear() - 3,
+        km: u.km ?? 50000,
+        moneda: u.moneda,
+        precio_venta: u.precio,
+      };
+    });
   }
 
   async crear(dto: CrearUnidadDto, user: User): Promise<VistaUnidad> {

@@ -43,6 +43,10 @@ export class InteresadoDto {
   @IsOptional() @IsString() @MaxLength(200)
   tiene_usado?: string | null;
 
+  /** Los datos completos del vehículo del interesado (JSON o objeto UsadoDelInteresado). */
+  @IsOptional()
+  usado?: unknown;
+
   @IsOptional() @ValidateIf(vacio) @Matches(FECHA)
   proxima_accion?: string | null;
 
@@ -112,7 +116,7 @@ export class ConsultaWebDto {
   @IsString() @MinLength(6) @MaxLength(40)
   telefono: string;
 
-  @IsOptional() @IsString() @MaxLength(1000)
+  @IsOptional() @IsString() @MaxLength(4000)
   mensaje?: string;
 
   @IsOptional() @ValidateIf(vacio) @IsUUID()
@@ -140,7 +144,7 @@ export class ConsultaWebDto {
   precio_moneda?: 'ARS' | 'USD';
 
   /** «Cotizá tu auto»: los mismos datos de `tiene_usado`, sueltos. Llega como texto JSON (el formulario con fotos no manda objetos). */
-  @IsOptional() @IsString() @MaxLength(600)
+  @IsOptional() @IsString() @MaxLength(6000)
   usado_datos?: string;
 
   /** «Vendé tu auto»: qué auto tiene (marca, modelo, año, kilómetros), con sus palabras. */

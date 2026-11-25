@@ -55,6 +55,14 @@ Quería saber si seguís buscando auto.
 Todo el stock actualizado está acá: {link_sitio}
 
 Cualquier cosa escribime.` },
+  { clave: 'int_bajo_precio', nombre: 'Bajó de precio el auto que buscaba', contexto: 'interesado', canal: 'whatsapp', texto:
+`Hola {cliente}, te escribo de {agencia}.
+
+Bajamos el precio del {auto}.
+Nuevo precio: {precio}
+Miralo acá: {link_auto}
+
+Si querés aprovecharlo, avisame y coordinamos para que lo veas.` },
   { clave: 'int_respuesta_mail', nombre: 'Respuesta a su consulta', contexto: 'interesado', canal: 'email', asunto: 'Tu consulta en {agencia}', texto:
 `Hola {cliente}:
 
@@ -102,6 +110,22 @@ Traé tu DNI. Decime qué día y a qué hora te queda bien.` },
 
 Que disfrutes el {auto}. Si necesitás algo, acá estamos.
 Y si conocés a alguien que esté buscando auto, este es nuestro stock: {link_sitio}` },
+  { clave: 'op_transferencia', nombre: 'Papeles y transferencia listos', contexto: 'operacion', canal: 'whatsapp', texto:
+`Hola {cliente}, te escribo de {agencia} por la documentación del {auto} ({operacion}).
+
+Ya están listos los papeles de la transferencia para retirar.
+Estamos en {direccion}. Avisame qué día pasás.` },
+  { clave: 'op_resena', nombre: 'Pedir reseña y recomendación', contexto: 'operacion', canal: 'whatsapp', texto:
+`Hola {cliente}, ¿cómo venís disfrutando el {auto}?
+
+Si tuviste una buena experiencia en {agencia}, nos ayuda muchísimo tu recomendación. Y si algún conocido busca auto, acá está nuestro stock actualizado: {link_sitio}
+
+¡Gracias de parte de todo el equipo!` },
+  { clave: 'op_postventa_service', nombre: 'Seguimiento postventa y renovación', contexto: 'operacion', canal: 'whatsapp', texto:
+`Hola {cliente}, soy {vendedor} de {agencia}.
+
+Paso a saludarte y saber cómo anda el {auto}. Acordate de revisar el próximo service y vencimiento de VTV.
+Cuando tengas ganas de cambiarlo por un modelo más nuevo, te lo tomamos en parte de pago: {link_sitio}` },
   { clave: 'op_reserva_mail', nombre: 'Reserva confirmada', contexto: 'operacion', canal: 'email', asunto: 'Tu reserva en {agencia}: {auto}', texto:
 `Hola {cliente}:
 

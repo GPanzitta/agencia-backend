@@ -12,7 +12,24 @@ export interface FotoDeInteresado {
   url_miniatura: string;
 }
 
+export interface GuiaDelUsado {
+  uso: string | null;
+  guardado: string | null;
+  motivo_venta: string | null;
+  ultimo_service: string | null;
+  ultima_vtv: string | null;
+  mantenimiento: string | null;
+  neumaticos: string | null;
+  transferencia: string | null;
+  agregados: string | null;
+  paneles_choques: string | null;
+  reparaciones: string | null;
+}
+
 export interface UsadoDelInteresado {
+  tipo_vehiculo?: string | null;
+  carroceria?: string | null;
+  dominio?: string | null;
   marca: string;
   modelo: string;
   version: string | null;
@@ -20,6 +37,13 @@ export interface UsadoDelInteresado {
   km: number | null;
   combustible: string | null;
   transmision: string | null;
+  seguro_cuota?: number | null;
+  seguro_cobertura?: string | null;
+  seguro_compania?: string | null;
+  costo_patente?: number | null;
+  radicacion?: string | null;
+  descripcion?: string | null;
+  guia?: GuiaDelUsado | null;
 }
 
 export interface NotaDeSeguimiento {

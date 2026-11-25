@@ -1,4 +1,4 @@
-import type { EtapaInteresado } from './interesado.entity';
+import type { EtapaInteresado, GuiaDelUsado, UsadoDelInteresado } from './interesado.entity';
 
 /** Reglas puras de interesados (12/11/2026). */
 
@@ -65,23 +65,63 @@ export function problemaDelCambio(actual: EtapaInteresado, nueva: EtapaInteresad
   return null;
 }
 
-/** Lee el auto que el sitio manda como texto JSON; cualquier cosa rara se descarta entera. */
-export function usadoDe(texto: string | null | undefined): { marca: string; modelo: string; version: string | null; anio: number; km: number | null; combustible: string | null; transmision: string | null } | null {
-  if (!texto) return null;
+/** Lee el auto que manda el sitio (texto JSON) o el ERP (objeto o texto JSON); cualquier cosa rara se descarta entera. */
+export function usadoDe(entrada: unknown): UsadoDelInteresado | null {
+  if (!entrada) return null;
   let d: Record<string, unknown>;
-  try { d = JSON.parse(texto) as Record<string, unknown>; } catch { return null; }
+  if (typeof entrada === 'string') {
+    try { d = JSON.parse(entrada) as Record<string, unknown>; } catch { return null; }
+  } else if (typeof entrada === 'object') {
+    d = entrada as Record<string, unknown>;
+  } else {
+    return null;
+  }
   if (!d || typeof d !== 'object') return null;
   const palabra = (v: unknown, largo: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, largo) : null);
+  const numeroPositivo = (v: unknown, tope: number) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 && n <= tope ? Math.round(n * 100) / 100 : null;
+  };
   const marca = palabra(d.marca, 40);
   const modelo = palabra(d.modelo, 60);
   const anio = Number(d.anio);
   if (!marca || !modelo || !Number.isInteger(anio) || anio < 1900 || anio > 2100) return null;
   const km = Number(d.km);
   const elegido = (v: unknown, validos: string[]) => (typeof v === 'string' && validos.includes(v) ? v : null);
+  const gRaw = d.guia && typeof d.guia === 'object' ? (d.guia as Record<string, unknown>) : null;
+  const guia: GuiaDelUsado | null = gRaw
+    ? {
+        uso: palabra(gRaw.uso, 500),
+        guardado: palabra(gRaw.guardado, 500),
+        motivo_venta: palabra(gRaw.motivo_venta, 500),
+        ultimo_service: palabra(gRaw.ultimo_service, 20),
+        ultima_vtv: palabra(gRaw.ultima_vtv, 20),
+        mantenimiento: palabra(gRaw.mantenimiento, 500),
+        neumaticos: palabra(gRaw.neumaticos, 500),
+        transferencia: palabra(gRaw.transferencia, 500),
+        agregados: palabra(gRaw.agregados, 500),
+        paneles_choques: palabra(gRaw.paneles_choques, 500),
+        reparaciones: palabra(gRaw.reparaciones, 500),
+      }
+    : null;
+  const tieneGuia = guia && Object.values(guia).some(Boolean);
   return {
-    marca, modelo, version: palabra(d.version, 60), anio,
+    tipo_vehiculo: palabra(d.tipo_vehiculo, 40),
+    carroceria: elegido(d.carroceria, ['sedan', 'hatchback', 'suv', 'pickup', 'coupe', 'rural', 'monovolumen', 'utilitario', 'moto', 'otro']),
+    dominio: palabra(d.dominio, 12),
+    marca,
+    modelo,
+    version: palabra(d.version, 80),
+    anio,
     km: Number.isInteger(km) && km >= 0 && km < 10_000_000 ? km : null,
     combustible: elegido(d.combustible, ['nafta', 'diesel', 'gnc', 'hibrido', 'electrico']),
     transmision: elegido(d.transmision, ['manual', 'automatica']),
+    seguro_cuota: numeroPositivo(d.seguro_cuota, 100_000_000),
+    seguro_cobertura: palabra(d.seguro_cobertura, 60),
+    seguro_compania: palabra(d.seguro_compania, 60),
+    costo_patente: numeroPositivo(d.costo_patente, 100_000_000),
+    radicacion: palabra(d.radicacion, 80),
+    descripcion: palabra(d.descripcion, 4000),
+    guia: tieneGuia ? guia : null,
   };
 }

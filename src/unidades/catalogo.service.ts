@@ -3,9 +3,13 @@ import { Publicacion, PUBLICACION_VACIA } from './publicacion.util';
 import { DataSource, In } from 'typeorm';
 
 import { Company } from '../companies/entities/company.entity';
-import { PapelesPublicos, papelesPublicos } from './papeles.util';
+import { Interesado } from '../interesados/interesado.entity';
+import { ETAPAS_ACTIVAS, coincide } from '../interesados/interesados.util';
+import { PapelesPublicos, papelesDe, papelesPublicos } from './papeles.util';
+import { Operacion } from './entities/operacion.entity';
+import { cuenta } from './operaciones.util';
 import { Unidad } from './entities/unidad.entity';
-import { diasEnStock } from './unidades.util';
+import { costoTotal, diasEnStock } from './unidades.util';
 import { hoyAr, tituloDe } from './unidades.vista';
 
 /** Lo que ve cualquiera en el sitio. Nunca lleva costo, piso, margen, titular, papeles ni notas. */
@@ -72,6 +76,123 @@ export class CatalogoService {
     const u = (await this.publicadas(companyId, id))[0];
     if (!u) throw new NotFoundException('Esa unidad ya no está publicada.');
     return u;
+  }
+
+  /**
+   * Estado en tiempo real para el propietario que dejó su vehículo en consignación:
+   * muestra estado operativo, precio publicado, piso acordado, gastos de alistaje,
+   * estado de papeles y cuántos interesados consultaron o buscan un auto así.
+   */
+  async consignacion(companyId: string, id: string) {
+    const em = this.dataSource.manager;
+    const u = await em.findOne(Unidad, {
+      where: { id, companyId, origen: 'consignacion' },
+      relations: { fotos: true, gastos: true },
+    });
+    if (!u) throw new NotFoundException('No encontramos esa unidad en consignación.');
+    const hoy = hoyAr();
+    const fotos = [...(u.fotos ?? [])].sort((a, b) => a.orden - b.orden);
+    const gastos = costoTotal(u);
+    const piso = u.precio_piso !== null ? Number(u.precio_piso) : null;
+    const neto = piso !== null ? Math.max(0, Math.round((piso - gastos) * 100) / 100) : null;
+
+    const activos = await em.find(Interesado, {
+      where: { companyId, etapa: In(ETAPAS_ACTIVAS) },
+      take: 500,
+    });
+    const consultaron = activos.filter((i) => i.unidadId === u.id).length;
+    const coinciden = activos.filter((i) => i.unidadId !== u.id && coincide(i, u)).length;
+
+    return {
+      id: u.id,
+      numero: u.numero,
+      titulo: tituloDe(u),
+      marca: u.marca,
+      modelo: u.modelo,
+      version: u.version,
+      anio: u.anio,
+      km: u.km,
+      dominio: u.dominio,
+      estado: u.estado,
+      publicada: u.publicada,
+      ubicacion: u.ubicacion,
+      moneda: u.moneda,
+      precio_piso: piso,
+      precio_publicado: u.precio_venta !== null ? Number(u.precio_venta) : null,
+      total_gastos: gastos,
+      neto_estimado: neto,
+      dias_en_gestion: diasEnStock(u.fecha_ingreso, hoy),
+      fecha_ingreso: u.fecha_ingreso,
+      fecha_venta: u.fecha_venta,
+      titular_nombre: u.titular_nombre,
+      portada: fotos[0]?.url ?? null,
+      papeles: papelesDe(u, hoy).map((p) => ({ tipo: p.tipo, nombre: p.nombre, estado: p.estado })),
+      actividad: {
+        consultas_directas: consultaron,
+        compradores_en_cartera: coinciden,
+      },
+    };
+  }
+
+  /**
+   * Estado en vivo de una Orden de Venta (OV) para el comprador cuando escanea el
+   * código QR de su constancia de OV (como el seguimiento de orden de servicio en Taller).
+   */
+  async ordenDeVentaPublica(companyId: string, id: string) {
+    const em = this.dataSource.manager;
+    const op = await em.findOne(Operacion, {
+      where: { id, companyId },
+      relations: { pagos: true },
+    });
+    if (!op) throw new NotFoundException('No encontramos esa Orden de Venta.');
+    const u = await em.findOne(Unidad, {
+      where: { id: op.unidadId, companyId },
+      relations: { fotos: true },
+    });
+    if (!u) throw new NotFoundException('No encontramos el vehículo de esa operación.');
+    const hoy = hoyAr();
+    const fotosUnidad = [...(u.fotos ?? [])].sort((a, b) => a.orden - b.orden);
+    const c = cuenta(op.precio, op.moneda, op.pagos ?? []);
+    const todosPapeles = papelesDe(u, hoy);
+    const transf = todosPapeles.find((p) => p.tipo === 'transferencia_registro');
+
+    return {
+      id: op.id,
+      numero: op.numero,
+      estado: op.estado,
+      cliente_nombre: op.cliente_nombre,
+      precio: Number(op.precio),
+      moneda: op.moneda,
+      pagado: c.pagado,
+      saldo: c.saldo,
+      saldada: c.saldada,
+      reserva_vence: op.reserva_vence,
+      created_at: op.created_at,
+      cerrada_at: op.cerrada_at,
+      auto: {
+        id: u.id,
+        numero: u.numero,
+        titulo: tituloDe(u),
+        anio: u.anio,
+        km: u.km,
+        dominio: u.dominio,
+        color: u.color,
+        portada: fotosUnidad[0]?.url ?? null,
+      },
+      papeles: papelesPublicos(u, hoy),
+      transferencia: {
+        estado: transf?.estado ?? 'falta',
+        nota: transf?.nota ?? null,
+      },
+      fotos_ov: (op.fotos ?? []).map((f) => ({
+        id: f.id,
+        url: f.url,
+        url_miniatura: f.url_miniatura,
+        nota: f.nota,
+        etapa: f.etapa,
+        fecha: f.fecha,
+      })),
+    };
   }
 
   /** La tasa depende de la moneda del auto; sin tasa para esa moneda, no se simula. */

@@ -10,6 +10,16 @@ import { OperacionPago } from './operacion-pago.entity';
 
 export type EstadoOperacion = 'reservada' | 'vendida' | 'anulada';
 
+export interface FotoDeOperacion {
+  id: string;
+  url: string;
+  url_miniatura: string;
+  nota: string | null;
+  etapa: string;
+  autor: string | null;
+  fecha: string;
+}
+
 /**
  * La venta de una unidad, desde la reserva con seña hasta el cierre. Los pagos
  * pueden ser mixtos y en dos monedas; un usado en parte de pago es un pago más.
@@ -78,6 +88,10 @@ export class Operacion {
 
   @Column({ type: 'text', nullable: true })
   notas: string | null;
+
+  /** Fotos y comprobantes adjuntos a la Orden de Venta (OV): señas, peritajes, entrega, 08. */
+  @Column({ type: 'jsonb', default: [] })
+  fotos: FotoDeOperacion[];
 
   @Column({ type: 'timestamptz', nullable: true })
   cerrada_at: Date | null;

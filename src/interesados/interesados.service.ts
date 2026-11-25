@@ -192,6 +192,44 @@ export class InteresadosService {
     return this.obtener(i.id);
   }
 
+  async subirFotos(id: string, archivos: Buffer[], user: User): Promise<VistaInteresado> {
+    if (!archivos.length) throw new ErrorDeNegocio('DATOS_INVALIDOS', 'Elegí al menos una foto para subir.');
+    const em = this.dataSource.manager;
+    const i = await this.existente(em, id);
+    const actuales = i.fotos ?? [];
+    const lugar = Math.max(0, MAXIMO_FOTOS_INTERESADO - actuales.length);
+    if (lugar <= 0) {
+      throw new ErrorDeNegocio('DATOS_INVALIDOS', `Un interesado admite hasta ${MAXIMO_FOTOS_INTERESADO} fotos: quitá alguna.`);
+    }
+    const comprimidas = await Promise.all(archivos.slice(0, lugar).map((a) => comprimirFoto(a)));
+    const nuevas = await this.guardarFotos(i.id, comprimidas);
+    const nota: NotaDeSeguimiento = {
+      fecha: new Date().toISOString(),
+      texto: `Se cargaron ${nuevas.length} ${nuevas.length === 1 ? 'foto' : 'fotos'} en su ficha.`,
+      autor: user.nombre,
+    };
+    await em.update(Interesado, { id: i.id }, {
+      fotos: [...actuales, ...nuevas],
+      seguimiento: [...(i.seguimiento ?? []), nota],
+    });
+    return this.obtener(i.id);
+  }
+
+  async borrarFoto(id: string, indice: number): Promise<VistaInteresado> {
+    const em = this.dataSource.manager;
+    const i = await this.existente(em, id);
+    const actuales = [...(i.fotos ?? [])];
+    if (indice < 0 || indice >= actuales.length) {
+      throw new NotFoundException('Esa foto no existe en la ficha.');
+    }
+    const [quitada] = actuales.splice(indice, 1);
+    await em.update(Interesado, { id: i.id }, { fotos: actuales });
+    if (quitada) {
+      await this.almacen.borrar([quitada.url, quitada.url_miniatura]).catch(() => undefined);
+    }
+    return this.obtener(i.id);
+  }
+
   /**
    * La consulta que llega del sitio, sin login. Si ese teléfono ya está entre
    * los interesados vivos, se le suma la nota en vez de duplicarlo. Nunca
@@ -247,6 +285,7 @@ export class InteresadosService {
     const clave = digitos(dto.telefono);
     const vivos = await em.find(Interesado, { where: { companyId, etapa: In(ETAPAS_ACTIVAS) }, take: 1000 });
     const existente = clave ? vivos.find((i) => digitos(i.telefono) === clave) : undefined;
+    const esVisita = dto.asunto === 'visita';
     if (existente) {
       const lugar = Math.max(0, MAXIMO_FOTOS_INTERESADO - (existente.fotos ?? []).length);
       const nuevas = await this.guardarFotos(existente.id, comprimidas.slice(0, lugar));
@@ -254,6 +293,7 @@ export class InteresadosService {
         fotos: [...(existente.fotos ?? []), ...nuevas],
         // Un pedido nuevo deja la cotización otra vez pendiente; la anterior queda en el seguimiento.
         ...(vende ? { cotizacion_pedida: true, cotizacion_valor: null, cotizacion_moneda: null, cotizacion_fecha: null } : {}),
+        ...(esVisita ? { etapa: 'visita' as EtapaInteresado, temperatura: 'caliente' as Temperatura } : {}),
         seguimiento: [...(existente.seguimiento ?? []), nota],
         unidadId: unidad?.id ?? existente.unidadId,
         tiene_usado: usado ?? existente.tiene_usado,
@@ -269,8 +309,8 @@ export class InteresadosService {
       nombre: dto.nombre.trim(),
       telefono: dto.telefono.trim(),
       origen: 'sitio',
-      etapa: 'nuevo',
-      temperatura: 'tibio',
+      etapa: esVisita ? 'visita' : 'nuevo',
+      temperatura: esVisita ? 'caliente' : 'tibio',
       unidadId: unidad?.id ?? null,
       // Lo que escribió va al seguimiento; «busca» queda para lo que el vendedor averigüe.
       busca: vende ? null : mensaje,
@@ -318,6 +358,17 @@ export class InteresadosService {
     poner('precio_max', dto.precio_max !== undefined, dto.precio_max ? Number(dto.precio_max) : null);
     poner('precio_moneda', dto.precio_moneda !== undefined || dto.precio_max !== undefined, dto.precio_max ? dto.precio_moneda ?? 'USD' : null);
     poner('tiene_usado', dto.tiene_usado !== undefined, limpio(dto.tiene_usado));
+    if (dto.usado !== undefined) {
+      const parsed = usadoDe(dto.usado);
+      d.usado = parsed;
+      if (parsed && !d.tiene_usado) {
+        const kmTxt = parsed.km !== null ? `${parsed.km.toLocaleString('es-AR')} km` : null;
+        d.tiene_usado = [parsed.marca, parsed.modelo, parsed.version, parsed.anio, kmTxt, parsed.dominio ? `[${parsed.dominio}]` : null]
+          .filter(Boolean)
+          .join(' ')
+          .slice(0, 200);
+      }
+    }
     poner('proxima_accion', dto.proxima_accion !== undefined, dto.proxima_accion || null);
     poner('proxima_nota', dto.proxima_nota !== undefined, limpio(dto.proxima_nota));
     if (soloPresentes && dto.vendedor_id !== undefined) d.vendedorId = dto.vendedor_id || null;

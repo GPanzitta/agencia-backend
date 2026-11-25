@@ -25,6 +25,7 @@ export const TIPOS_DE_PAPEL: TipoDePapel[] = [
   { tipo: 'vtv', nombre: 'VTV / RTO', bloquea: false, vence: true },
   { tipo: 'denuncia_venta', nombre: 'Denuncia de venta del titular', bloquea: false },
   { tipo: 'contrato_consignacion', nombre: 'Contrato de consignación', bloquea: true, soloOrigen: 'consignacion' },
+  { tipo: 'transferencia_registro', nombre: 'Transferencia en Registro Automotor y cédula nueva', bloquea: false },
 ];
 
 export const ESTADOS_DE_PAPEL: EstadoPapel[] = ['falta', 'en_tramite', 'ok'];

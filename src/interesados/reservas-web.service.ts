@@ -7,6 +7,7 @@ import { Company } from '../companies/entities/company.entity';
 import { Operacion } from '../unidades/entities/operacion.entity';
 import { Unidad } from '../unidades/entities/unidad.entity';
 import { OperacionesService } from '../unidades/operaciones.service';
+import { PapelesPublicos, papelesPublicos } from '../unidades/papeles.util';
 import { hoyAr, tituloDe } from '../unidades/unidades.vista';
 import { InteresadosService } from './interesados.service';
 import { ConfirmarReservaDto, PedirReservaDto, RechazarReservaDto } from './reservas-web.dtos';
@@ -27,6 +28,13 @@ export interface ReservaPublica {
   vence_at: Date;
   /** Hasta cuándo se le guarda el auto, ya confirmada. AAAA-MM-DD. */
   guardado_hasta: string | null;
+  /** Seguimiento postventa de papeles y transferencia en Registro Automotor. */
+  papeles: PapelesPublicos | null;
+  transferencia: {
+    estado: 'falta' | 'en_tramite' | 'ok';
+    nota: string | null;
+    vendida: boolean;
+  } | null;
 }
 
 export interface VistaReservaWeb {
@@ -122,6 +130,8 @@ export class ReservasWebService {
     ]);
     const estado = estadoVigente(r.estado, r.vence_at);
     const pendiente = estado === 'pendiente';
+    const hoy = hoyAr();
+    const tr = u?.papeles?.transferencia_registro;
     return {
       estado,
       nombre: r.cliente_nombre,
@@ -132,6 +142,14 @@ export class ReservasWebService {
       titular: pendiente ? empresa?.sitio_reserva?.titular ?? null : null,
       vence_at: r.vence_at,
       guardado_hasta: estado === 'confirmada' ? op?.reserva_vence ?? null : null,
+      papeles: estado === 'confirmada' && u ? papelesPublicos(u, hoy) : null,
+      transferencia: estado === 'confirmada' && u
+        ? {
+            estado: tr?.estado ?? 'falta',
+            nota: tr?.nota ?? null,
+            vendida: u.estado === 'vendida',
+          }
+        : null,
     };
   }
 
