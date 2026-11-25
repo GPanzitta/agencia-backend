@@ -116,10 +116,9 @@ import { SaludModule } from './salud/salud.module';
             synchronize: false,
             migrations: ['dist/migrations/*.js'],
             migrationsTableName: 'migrations',
-            // Las migraciones se corren explícitamente en el deploy, no al
-            // levantar la app: si una falla, tiene que fallar el deploy y no
-            // dejar el servicio a medio arrancar.
-            migrationsRun: false,
+            // Ejecuta también cualquier migración pendiente al iniciar la app
+            // (por si el servicio en Render no tiene configurado preDeployCommand).
+            migrationsRun: true,
             // dropSchema: true,
             // `rejectUnauthorized: false` cifraba la conexión pero no validaba
             // el certificado del servidor, que es justamente lo que protege
